@@ -8,7 +8,7 @@ const endDate =
     ? moment().add(2, 'days')
     : moment().add(1, 'days');
 
-const dateInit = moment().add(1, 'days').toDate();
+const dateInit = new Date();
 
 const startTime = () => {
   const time = new Date();
@@ -24,4 +24,9 @@ const endTime = () => {
   return time;
 };
 
-export { startDate, endDate, dateInit, startTime, endTime };
+const formatTime = (date, time) =>
+  moment(
+    `${moment(date).format('YYYY-MM-DD')} ${moment(time).format('HH:mm:00')}`
+  ).toDate();
+
+export { startDate, endDate, dateInit, startTime, endTime, formatTime };

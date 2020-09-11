@@ -14,12 +14,12 @@ export const createAppointment = data => dispatch => {
   axios
     .post(`${API}/appointment`, data)
     .then(res => {
-      dispatch({ type: CREATE_APPOINTMENT_SUCCESS, payload: res.data });
+      dispatch({ type: CREATE_APPOINTMENT_SUCCESS, payload: res.data.data });
     })
     .catch(err => {
       dispatch({
         type: CREATE_APPOINTMENT_FAILURE,
-        payload: err,
+        payload: err.response.data.data.errors,
       });
     });
 };

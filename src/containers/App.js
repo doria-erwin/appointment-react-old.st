@@ -10,9 +10,18 @@ import moment from 'moment';
 import Input from '../components/Input';
 import TextArea from '../components/TextArea';
 import SearchInput from '../components/SearchInput';
-import { startTime, endTime, startDate, endDate, dateInit } from '../util';
+import {
+  startTime,
+  endTime,
+  startDate,
+  endDate,
+  dateInit,
+  formatTime,
+} from '../util';
 import { connect } from 'react-redux';
 import { createAppointment } from '../store/actions';
+import { isEqual } from 'lodash';
+import Errors from '../components/Errors';
 
 const columns = [
   {
@@ -80,6 +89,7 @@ class App extends Component {
     lastName: '',
     middleName: '',
     comments: '',
+    errors: [],
   };
 
   handleEvent(event, picker) {
@@ -96,15 +106,9 @@ class App extends Component {
   };
 
   handleShowForm = () => {
-    // const { isShowForm } = this.state;
-    // this.setState({ isShowForm: !isShowForm });
-    const { createAppointment } = this.props;
-    createAppointment({});
+    const { isShowForm } = this.state;
+    this.setState({ isShowForm: !isShowForm });
   };
-
-  componentDidUpdate(nextProps) {
-    console.log(nextProps);
-  }
 
   handleDateRange = dates => {
     if (dates) {
@@ -115,19 +119,85 @@ class App extends Component {
     }
   };
 
-  handleOnChangeStartTime = date => {
-    this.setState({ startTime: date });
-  };
-
-  handleOnChangeEndTime = date => {
-    this.setState({ endTime: date });
+  handleOnChangeTime = (key, time) => {
+    const { date } = this.state;
+    this.setState({ [key]: formatTime(date, time) });
   };
 
   handleOnChangeDate = date => {
-    this.setState({ date: date });
+    const { startTime, endTime } = this.state;
+    this.setState({
+      startTime: formatTime(date, startTime),
+      endTime: formatTime(date, endTime),
+      date,
+    });
   };
 
-  handleOnchange = event => {};
+  componentDidUpdate(prevProps) {
+    const { hasError, errors, appoinment } = this.props;
+    if (!isEqual(prevProps.hasError, hasError)) {
+      this.setState({ errors });
+    }
+
+    if (!isEqual(prevProps.appoinment, appoinment)) {
+      if (!hasError) {
+        alert('Successfully added');
+        this.handleResetState();
+      }
+    }
+  }
+
+  handleOnchange = e => {
+    const { name, value } = e.target;
+    this.setState({ [name]: value });
+  };
+
+  handleOnSave = e => {
+    e.preventDefault();
+    const { createAppointment } = this.props;
+    const {
+      firstName,
+      lastName,
+      middleName,
+      comments,
+      startTime,
+      endTime,
+    } = this.state;
+    if (startTime <= new Date()) {
+      this.setState({ errors: 'Invalid start time' });
+    } else {
+      const data = {
+        startTime: moment(startTime).format('YYYY-MM-DD HH:mm:00'),
+        endTime: moment(endTime).format('YYYY-MM-DD HH:mm:00'),
+        patient: {
+          firstName,
+          lastName,
+          middleName,
+        },
+        comment: {
+          message: comments,
+        },
+      };
+      createAppointment(data);
+    }
+  };
+
+  handleResetState() {
+    this.setState({
+      isShowDatePicker: false,
+      isShowForm: false,
+      startDate,
+      endDate,
+      date: dateInit,
+      startTime: startTime(),
+      endTime: endTime(),
+      firstName: '',
+      lastName: '',
+      middleName: '',
+      comments: '',
+      errors: [],
+    });
+  }
 
   render() {
     const {
@@ -142,15 +212,17 @@ class App extends Component {
       lastName,
       middleName,
       comments,
+      errors,
     } = this.state;
-
     return (
       <MDBContainer className='mt-5'>
         <h1>Doctor's Appointment</h1>
         {isShowForm && (
-          <form>
+          <form onSubmit={this.handleOnSave}>
+            {errors && <Errors errors={errors} />}
             <Input
               id='firstName'
+              name='firstName'
               label='First name:'
               value={firstName}
               required
@@ -158,6 +230,7 @@ class App extends Component {
             />
             <Input
               id='middleName'
+              name='middleName'
               label='Middle name:'
               value={middleName}
               required
@@ -165,6 +238,7 @@ class App extends Component {
             />
             <Input
               id='lastName'
+              name='lastName'
               label='Last name:'
               value={lastName}
               required
@@ -172,7 +246,8 @@ class App extends Component {
             />
             <TextArea
               id='comments'
-              label='Comments:'
+              name='comments'
+              label='Message:'
               value={comments}
               required
               onChange={this.handleOnchange.bind(this)}
@@ -181,14 +256,14 @@ class App extends Component {
               id='startTime'
               selected={startTime}
               lable='Start time:'
-              onChange={this.handleOnChangeStartTime.bind(this)}
+              onChange={e => this.handleOnChangeTime('startTime', e)}
               timeInterval={30}
             />
             <TimePicker
               id='endTime'
               selected={endTime}
               lable='End time:'
-              onChange={this.handleOnChangeEndTime.bind(this)}
+              onChange={e => this.handleOnChangeTime('endTime', e)}
               timeInterval={30}
             />
             <DatePicker
@@ -268,7 +343,10 @@ class App extends Component {
 }
 
 const mapStateToProps = state => ({
-  state: state,
+  appoinment: state.appointment.appointment,
+  isLoading: state.appointment.isLoading,
+  hasError: state.appointment.hasError,
+  errors: state.appointment.errors,
 });
 const mapDispatchToProps = dispatch => ({
   createAppointment: data => dispatch(createAppointment(data)),
