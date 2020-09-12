@@ -17,12 +17,16 @@ import {
   endDate,
   dateInit,
   formatTime,
+  getAppointment,
 } from '../util';
 import { connect } from 'react-redux';
 import {
   createAppointment,
   showAllAppointments,
   deleteAppointment,
+  showAppointmentById,
+  updateAppointment,
+  resetAppointment,
 } from '../store/actions';
 import { isEqual, get } from 'lodash';
 import Errors from '../components/Errors';
@@ -34,6 +38,7 @@ class App extends Component {
     startDate,
     endDate,
     date: dateInit,
+    id: undefined,
     startTime: startTime(),
     endTime: endTime(),
     firstName: '',
@@ -97,7 +102,10 @@ class App extends Component {
             id='container-action'
             className='d-flex justify-content-center p-2'
           >
-            <span className='text-warning p-1 cursor-pointer'>
+            <span
+              className='text-warning p-1 cursor-pointer'
+              onClick={() => this.handleShowAppointmentById(row.id)}
+            >
               <MDBIcon icon='pencil-alt' />
             </span>
             <span
@@ -141,7 +149,11 @@ class App extends Component {
   };
 
   handleShowForm = () => {
-    const { isShowForm } = this.state;
+    let { isShowForm } = this.state;
+    const { resetAppointment } = this.props;
+    if (isShowForm) {
+      resetAppointment();
+    }
     this.setState({ isShowForm: !isShowForm });
   };
 
@@ -169,7 +181,13 @@ class App extends Component {
   };
 
   componentDidUpdate(prevProps) {
-    const { hasError, errors, appointment, appointments } = this.props;
+    const {
+      hasError,
+      errors,
+      appointment,
+      appointments,
+      resetAppointment,
+    } = this.props;
     if (!isEqual(prevProps.appointments, appointments)) {
       this.setState({ appointments: get(appointments, 'appointments', []) });
     }
@@ -180,10 +198,29 @@ class App extends Component {
 
     if (!isEqual(prevProps.appointment, appointment)) {
       if (!hasError) {
-        if (get(appointment, 'message', undefined)) alert(appointment.message);
-        this.handleResetState();
-        this.setState({ isShowDatePicker: false });
-        this.handleShowAppointments(true);
+        if (get(appointment, 'message', undefined)) {
+          alert(appointment.message);
+          resetAppointment();
+          this.handleResetState();
+          this.setState({ isShowDatePicker: false, id: undefined });
+          this.handleShowAppointments(true);
+        } else {
+          const data = get(appointment, 'appointment', {});
+          if (Object.keys(data).length > 0) {
+            let { id, startTime, endTime, comment, patient } = data;
+            this.setState({
+              id,
+              startTime: moment(startTime).toDate(),
+              endTime: moment(endTime).toDate(),
+              date: moment(startTime).toDate(),
+              comments: get(comment, 'message', ''),
+              firstName: get(patient, 'firstName', ''),
+              lastName: get(patient, 'middleName', ''),
+              middleName: get(patient, 'lastName', ''),
+            });
+            this.handleShowForm();
+          }
+        }
       }
     }
   }
@@ -199,31 +236,13 @@ class App extends Component {
 
   handleOnSave = e => {
     e.preventDefault();
-    const { createAppointment } = this.props;
-    const {
-      firstName,
-      lastName,
-      middleName,
-      comments,
-      startTime,
-      endTime,
-    } = this.state;
+    const { createAppointment, updateAppointment } = this.props;
+    const { id, startTime } = this.state;
     if (startTime <= new Date()) {
       this.setState({ errors: 'Invalid start time' });
     } else {
-      const data = {
-        startTime: moment(startTime).format('YYYY-MM-DD HH:mm:00'),
-        endTime: moment(endTime).format('YYYY-MM-DD HH:mm:00'),
-        patient: {
-          firstName,
-          lastName,
-          middleName,
-        },
-        comment: {
-          message: comments,
-        },
-      };
-      createAppointment(data);
+      const data = getAppointment(this.state, id == undefined);
+      id ? updateAppointment(data) : createAppointment(data);
     }
   };
 
@@ -231,6 +250,11 @@ class App extends Component {
     const { deleteAppointment } = this.props;
     const isConfirm = window.confirm('Are you sure you want to delete?');
     if (isConfirm) deleteAppointment(id);
+  };
+
+  handleShowAppointmentById = id => {
+    const { showAppointmentById } = this.props;
+    showAppointmentById(id);
   };
 
   handleResetState() {
@@ -402,6 +426,7 @@ class App extends Component {
 }
 
 const mapStateToProps = state => ({
+  state: state,
   appointments: state.appointment.appointments,
   appointment: state.appointment.appointment,
   isLoading: state.appointment.isLoading,
@@ -412,6 +437,9 @@ const mapDispatchToProps = dispatch => ({
   createAppointment: data => dispatch(createAppointment(data)),
   showAllAppointments: data => dispatch(showAllAppointments(data)),
   deleteAppointment: data => dispatch(deleteAppointment(data)),
+  showAppointmentById: data => dispatch(showAppointmentById(data)),
+  updateAppointment: data => dispatch(updateAppointment(data)),
+  resetAppointment: () => dispatch(resetAppointment()),
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(App);

@@ -29,4 +29,42 @@ const formatTime = (date, time) =>
     `${moment(date).format('YYYY-MM-DD')} ${moment(time).format('HH:mm:00')}`
   ).toDate();
 
-export { startDate, endDate, dateInit, startTime, endTime, formatTime };
+const getAppointment = (data, isNoId = true) => {
+  const {
+    id,
+    firstName,
+    lastName,
+    middleName,
+    comments,
+    startTime,
+    endTime,
+  } = data;
+
+  const appointment = {
+    id,
+    startTime: moment(startTime).format('YYYY-MM-DD HH:mm:00'),
+    endTime: moment(endTime).format('YYYY-MM-DD HH:mm:00'),
+    patient: {
+      firstName,
+      lastName,
+      middleName,
+    },
+    comment: {
+      message: comments,
+    },
+  };
+
+  if (isNoId) delete appointment.id;
+
+  return appointment;
+};
+
+export {
+  startDate,
+  endDate,
+  dateInit,
+  startTime,
+  endTime,
+  formatTime,
+  getAppointment,
+};

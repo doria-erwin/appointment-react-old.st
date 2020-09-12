@@ -1,7 +1,7 @@
 /** @format */
 
 import React from 'react';
-import { MDBContainer, MDBAlert } from 'mdbreact';
+import { MDBAlert } from 'mdbreact';
 
 export default ({ errors }) => {
   if (typeof errors === 'object') {
