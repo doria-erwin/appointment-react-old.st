@@ -1,5 +1,9 @@
 /** @format */
 
-import { createAppointment } from './appointment';
+import {
+  createAppointment,
+  showAllAppointments,
+  deleteAppointment,
+} from './appointment';
 
-export { createAppointment };
+export { createAppointment, showAllAppointments, deleteAppointment };

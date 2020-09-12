@@ -19,62 +19,13 @@ import {
   formatTime,
 } from '../util';
 import { connect } from 'react-redux';
-import { createAppointment } from '../store/actions';
-import { isEqual } from 'lodash';
+import {
+  createAppointment,
+  showAllAppointments,
+  deleteAppointment,
+} from '../store/actions';
+import { isEqual, get } from 'lodash';
 import Errors from '../components/Errors';
-
-const columns = [
-  {
-    name: 'id',
-    selector: 'id',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'From',
-    selector: 'From',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'To',
-    selector: 'To',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'Patient',
-    selector: 'Patient',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'Comments',
-    selector: 'Comments',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'Actions',
-    selector: 'Actions',
-    sortable: false,
-    center: true,
-    cell: row => (
-      <MDBContainer
-        id='container-action'
-        className='d-flex justify-content-center p-2'
-      >
-        <span className='text-warning p-1 cursor-pointer'>
-          <MDBIcon icon='pencil-alt' />
-        </span>
-        <span className='text-danger p-1 cursor-pointer'>
-          <MDBIcon icon='trash' />
-        </span>
-      </MDBContainer>
-    ),
-  },
-];
-const data = [{ id: 1, title: 'Conan the Barbarian', year: '1982' }];
 
 class App extends Component {
   state = {
@@ -90,18 +41,102 @@ class App extends Component {
     middleName: '',
     comments: '',
     errors: [],
+    appointments: [],
+    columns: [
+      {
+        name: 'id',
+        selector: 'id',
+        sortable: true,
+        center: true,
+      },
+      {
+        name: 'From',
+        selector: 'startTime',
+        sortable: true,
+        center: true,
+      },
+      {
+        name: 'To',
+        selector: 'endTime',
+        sortable: true,
+        center: true,
+      },
+      {
+        name: 'Patient',
+        selector: 'patient',
+        sortable: true,
+        center: true,
+        cell: row => (
+          <p className='text-capitalize'>{`${get(
+            row,
+            'patient.lastName',
+            ''
+          )} ${get(row, 'patient.firstName', '')}, ${get(
+            row,
+            'patient.middleName',
+            ''
+          )}`}</p>
+        ),
+      },
+      {
+        name: 'Comments',
+        selector: 'comment',
+        sortable: true,
+        center: true,
+        cell: row => (
+          <p className='text-capitalize'>{get(row, 'comment.message', '')}</p>
+        ),
+      },
+      {
+        name: 'Actions',
+        selector: 'Actions',
+        sortable: false,
+        center: true,
+        cell: row => (
+          <MDBContainer
+            id='container-action'
+            className='d-flex justify-content-center p-2'
+          >
+            <span className='text-warning p-1 cursor-pointer'>
+              <MDBIcon icon='pencil-alt' />
+            </span>
+            <span
+              className='text-danger p-1 cursor-pointer'
+              onClick={() => this.handleDeleteAppointments(row.id)}
+            >
+              <MDBIcon icon='trash' />
+            </span>
+          </MDBContainer>
+        ),
+      },
+    ],
   };
 
-  handleEvent(event, picker) {
-    console.log(picker.startDate);
-  }
+  handleEvent(event, picker) {}
 
   handleCallback(start, end, label) {
-    console.log(start);
+    this.setState({ startDate: start, endDate: end });
+    this.handleShowAppointments();
+  }
+
+  handleShowAppointments(isAll) {
+    const { startDate, endDate } = this.state;
+    const { showAllAppointments } = this.props;
+
+    const params = !isAll
+      ? `?startDate=${startDate.format('YYYY-MM-DD')}&endDate=${endDate.format(
+          'YYYY-MM-DD'
+        )}`
+      : '';
+
+    showAllAppointments(params);
   }
 
   handleShowDatePicker = () => {
     const { isShowDatePicker } = this.state;
+    isShowDatePicker
+      ? this.handleShowAppointments(true)
+      : this.handleShowAppointments();
     this.setState({ isShowDatePicker: !isShowDatePicker });
   };
 
@@ -134,17 +169,27 @@ class App extends Component {
   };
 
   componentDidUpdate(prevProps) {
-    const { hasError, errors, appoinment } = this.props;
+    const { hasError, errors, appointment, appointments } = this.props;
+    if (!isEqual(prevProps.appointments, appointments)) {
+      this.setState({ appointments: get(appointments, 'appointments', []) });
+    }
+
     if (!isEqual(prevProps.hasError, hasError)) {
       this.setState({ errors });
     }
 
-    if (!isEqual(prevProps.appoinment, appoinment)) {
+    if (!isEqual(prevProps.appointment, appointment)) {
       if (!hasError) {
-        alert('Successfully added');
+        if (get(appointment, 'message', undefined)) alert(appointment.message);
         this.handleResetState();
+        this.setState({ isShowDatePicker: false });
+        this.handleShowAppointments(true);
       }
     }
+  }
+
+  componentWillMount() {
+    this.handleShowAppointments(true);
   }
 
   handleOnchange = e => {
@@ -182,6 +227,12 @@ class App extends Component {
     }
   };
 
+  handleDeleteAppointments = id => {
+    const { deleteAppointment } = this.props;
+    const isConfirm = window.confirm('Are you sure you want to delete?');
+    if (isConfirm) deleteAppointment(id);
+  };
+
   handleResetState() {
     this.setState({
       isShowDatePicker: false,
@@ -213,7 +264,10 @@ class App extends Component {
       middleName,
       comments,
       errors,
+      appointments,
+      columns,
     } = this.state;
+
     return (
       <MDBContainer className='mt-5'>
         <h1>Doctor's Appointment</h1>
@@ -310,7 +364,7 @@ class App extends Component {
                 <MDBBtn
                   onClick={this.handleShowForm}
                   size='sm'
-                  title='Add appoinment'
+                  title='Add appointment'
                   color='success'
                   className='p-2 shadow-none btn-action'
                 >
@@ -320,8 +374,8 @@ class App extends Component {
             </div>
             {isShowDatePicker && (
               <DateRangePicker
-                onEvent={this.handleEvent}
-                onCallback={this.handleCallback}
+                onEvent={this.handleEvent.bind(this)}
+                onCallback={this.handleCallback.bind(this)}
                 initialSettings={{
                   startDate: startDate,
                   endDate: endDate,
@@ -334,7 +388,12 @@ class App extends Component {
               </DateRangePicker>
             )}
             <SearchInput onChange={this.handleOnchange.bind(this)} />
-            <DataTable responsive columns={columns} data={data} pagination />
+            <DataTable
+              responsive
+              columns={columns}
+              data={appointments}
+              pagination
+            />
           </Fragment>
         )}
       </MDBContainer>
@@ -343,13 +402,16 @@ class App extends Component {
 }
 
 const mapStateToProps = state => ({
-  appoinment: state.appointment.appointment,
+  appointments: state.appointment.appointments,
+  appointment: state.appointment.appointment,
   isLoading: state.appointment.isLoading,
   hasError: state.appointment.hasError,
   errors: state.appointment.errors,
 });
 const mapDispatchToProps = dispatch => ({
   createAppointment: data => dispatch(createAppointment(data)),
+  showAllAppointments: data => dispatch(showAllAppointments(data)),
+  deleteAppointment: data => dispatch(deleteAppointment(data)),
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(App);
