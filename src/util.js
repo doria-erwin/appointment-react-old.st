@@ -59,6 +59,20 @@ const getAppointment = (data, isNoId = true) => {
   return appointment;
 };
 
+const params = (data, isAll, search) => {
+  let { startDate, endDate } = data;
+  search =
+    search.trim(search).length > 0
+      ? `${!isAll ? '&' : '?'}search=${search}`
+      : '';
+  const param = !isAll
+    ? `?startDate=${startDate.format('YYYY-MM-DD')}&endDate=${endDate.format(
+        'YYYY-MM-DD'
+      )}`
+    : '';
+  return `${param}${search}`;
+};
+
 export {
   startDate,
   endDate,
@@ -67,4 +81,5 @@ export {
   endTime,
   formatTime,
   getAppointment,
+  params,
 };

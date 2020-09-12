@@ -18,6 +18,7 @@ import {
   dateInit,
   formatTime,
   getAppointment,
+  params,
 } from '../util';
 import { connect } from 'react-redux';
 import {
@@ -33,6 +34,7 @@ import Errors from '../components/Errors';
 
 class App extends Component {
   state = {
+    search: '',
     isShowDatePicker: false,
     isShowForm: false,
     startDate,
@@ -127,17 +129,9 @@ class App extends Component {
     this.handleShowAppointments();
   }
 
-  handleShowAppointments(isAll) {
-    const { startDate, endDate } = this.state;
+  handleShowAppointments(isAll, search = '') {
     const { showAllAppointments } = this.props;
-
-    const params = !isAll
-      ? `?startDate=${startDate.format('YYYY-MM-DD')}&endDate=${endDate.format(
-          'YYYY-MM-DD'
-        )}`
-      : '';
-
-    showAllAppointments(params);
+    showAllAppointments(params(this.state, isAll, search));
   }
 
   handleShowDatePicker = () => {
@@ -151,9 +145,8 @@ class App extends Component {
   handleShowForm = () => {
     let { isShowForm } = this.state;
     const { resetAppointment } = this.props;
-    if (isShowForm) {
-      resetAppointment();
-    }
+    if (isShowForm) resetAppointment();
+
     this.setState({ isShowForm: !isShowForm });
   };
 
@@ -229,8 +222,14 @@ class App extends Component {
     this.handleShowAppointments(true);
   }
 
+  handleSearchAppointments(search) {
+    const { isShowDatePicker } = this.state;
+    this.handleShowAppointments(!isShowDatePicker, search);
+  }
+
   handleOnchange = e => {
     const { name, value } = e.target;
+    if (name === 'search') this.handleSearchAppointments(value);
     this.setState({ [name]: value });
   };
 
