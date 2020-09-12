@@ -1,5 +1,19 @@
 /** @format */
 
-import { createAppointment } from './appointment';
+import {
+  createAppointment,
+  showAllAppointments,
+  deleteAppointment,
+  showAppointmentById,
+  resetAppointment,
+  updateAppointment,
+} from './appointment';
 
-export { createAppointment };
+export {
+  createAppointment,
+  showAllAppointments,
+  deleteAppointment,
+  showAppointmentById,
+  resetAppointment,
+  updateAppointment,
+};

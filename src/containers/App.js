@@ -10,101 +10,145 @@ import moment from 'moment';
 import Input from '../components/Input';
 import TextArea from '../components/TextArea';
 import SearchInput from '../components/SearchInput';
-import { startTime, endTime, startDate, endDate, dateInit } from '../util';
+import {
+  startTime,
+  endTime,
+  startDate,
+  endDate,
+  dateInit,
+  formatTime,
+  getAppointment,
+  params,
+} from '../util';
 import { connect } from 'react-redux';
-import { createAppointment } from '../store/actions';
-
-const columns = [
-  {
-    name: 'id',
-    selector: 'id',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'From',
-    selector: 'From',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'To',
-    selector: 'To',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'Patient',
-    selector: 'Patient',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'Comments',
-    selector: 'Comments',
-    sortable: true,
-    center: true,
-  },
-  {
-    name: 'Actions',
-    selector: 'Actions',
-    sortable: false,
-    center: true,
-    cell: row => (
-      <MDBContainer
-        id='container-action'
-        className='d-flex justify-content-center p-2'
-      >
-        <span className='text-warning p-1 cursor-pointer'>
-          <MDBIcon icon='pencil-alt' />
-        </span>
-        <span className='text-danger p-1 cursor-pointer'>
-          <MDBIcon icon='trash' />
-        </span>
-      </MDBContainer>
-    ),
-  },
-];
-const data = [{ id: 1, title: 'Conan the Barbarian', year: '1982' }];
+import {
+  createAppointment,
+  showAllAppointments,
+  deleteAppointment,
+  showAppointmentById,
+  updateAppointment,
+  resetAppointment,
+} from '../store/actions';
+import { isEqual, get } from 'lodash';
+import Errors from '../components/Errors';
 
 class App extends Component {
   state = {
+    search: '',
     isShowDatePicker: false,
     isShowForm: false,
     startDate,
     endDate,
     date: dateInit,
+    id: undefined,
     startTime: startTime(),
     endTime: endTime(),
     firstName: '',
     lastName: '',
     middleName: '',
     comments: '',
+    errors: [],
+    appointments: [],
+    columns: [
+      {
+        name: 'id',
+        selector: 'id',
+        sortable: true,
+        center: true,
+      },
+      {
+        name: 'From',
+        selector: 'startTime',
+        sortable: true,
+        center: true,
+      },
+      {
+        name: 'To',
+        selector: 'endTime',
+        sortable: true,
+        center: true,
+      },
+      {
+        name: 'Patient',
+        selector: 'patient',
+        sortable: true,
+        center: true,
+        cell: row => (
+          <p className='text-capitalize'>{`${get(
+            row,
+            'patient.lastName',
+            ''
+          )} ${get(row, 'patient.firstName', '')}, ${get(
+            row,
+            'patient.middleName',
+            ''
+          )}`}</p>
+        ),
+      },
+      {
+        name: 'Comments',
+        selector: 'comment',
+        sortable: true,
+        center: true,
+        cell: row => (
+          <p className='text-capitalize'>{get(row, 'comment.message', '')}</p>
+        ),
+      },
+      {
+        name: 'Actions',
+        selector: 'Actions',
+        sortable: false,
+        center: true,
+        cell: row => (
+          <MDBContainer
+            id='container-action'
+            className='d-flex justify-content-center p-2'
+          >
+            <span
+              className='text-warning p-1 cursor-pointer'
+              onClick={() => this.handleShowAppointmentById(row.id)}
+            >
+              <MDBIcon icon='pencil-alt' />
+            </span>
+            <span
+              className='text-danger p-1 cursor-pointer'
+              onClick={() => this.handleDeleteAppointments(row.id)}
+            >
+              <MDBIcon icon='trash' />
+            </span>
+          </MDBContainer>
+        ),
+      },
+    ],
   };
 
-  handleEvent(event, picker) {
-    console.log(picker.startDate);
-  }
+  handleEvent(event, picker) {}
 
   handleCallback(start, end, label) {
-    console.log(start);
+    this.setState({ startDate: start, endDate: end });
+    this.handleShowAppointments();
+  }
+
+  handleShowAppointments(isAll, search = '') {
+    const { showAllAppointments } = this.props;
+    showAllAppointments(params(this.state, isAll, search));
   }
 
   handleShowDatePicker = () => {
     const { isShowDatePicker } = this.state;
+    isShowDatePicker
+      ? this.handleShowAppointments(true)
+      : this.handleShowAppointments();
     this.setState({ isShowDatePicker: !isShowDatePicker });
   };
 
   handleShowForm = () => {
-    // const { isShowForm } = this.state;
-    // this.setState({ isShowForm: !isShowForm });
-    const { createAppointment } = this.props;
-    createAppointment({});
-  };
+    let { isShowForm } = this.state;
+    const { resetAppointment } = this.props;
+    if (isShowForm) resetAppointment();
 
-  componentDidUpdate(nextProps) {
-    console.log(nextProps);
-  }
+    this.setState({ isShowForm: !isShowForm });
+  };
 
   handleDateRange = dates => {
     if (dates) {
@@ -115,19 +159,119 @@ class App extends Component {
     }
   };
 
-  handleOnChangeStartTime = date => {
-    this.setState({ startTime: date });
-  };
-
-  handleOnChangeEndTime = date => {
-    this.setState({ endTime: date });
+  handleOnChangeTime = (key, time) => {
+    const { date } = this.state;
+    this.setState({ [key]: formatTime(date, time) });
   };
 
   handleOnChangeDate = date => {
-    this.setState({ date: date });
+    const { startTime, endTime } = this.state;
+    this.setState({
+      startTime: formatTime(date, startTime),
+      endTime: formatTime(date, endTime),
+      date,
+    });
   };
 
-  handleOnchange = event => {};
+  componentDidUpdate(prevProps) {
+    const {
+      hasError,
+      errors,
+      appointment,
+      appointments,
+      resetAppointment,
+    } = this.props;
+    if (!isEqual(prevProps.appointments, appointments)) {
+      this.setState({ appointments: get(appointments, 'appointments', []) });
+    }
+
+    if (!isEqual(prevProps.hasError, hasError)) {
+      this.setState({ errors });
+    }
+
+    if (!isEqual(prevProps.appointment, appointment)) {
+      if (!hasError) {
+        if (get(appointment, 'message', undefined)) {
+          alert(appointment.message);
+          resetAppointment();
+          this.handleResetState();
+          this.setState({ isShowDatePicker: false, id: undefined });
+          this.handleShowAppointments(true);
+        } else {
+          const data = get(appointment, 'appointment', {});
+          if (Object.keys(data).length > 0) {
+            let { id, startTime, endTime, comment, patient } = data;
+            this.setState({
+              id,
+              startTime: moment(startTime).toDate(),
+              endTime: moment(endTime).toDate(),
+              date: moment(startTime).toDate(),
+              comments: get(comment, 'message', ''),
+              firstName: get(patient, 'firstName', ''),
+              lastName: get(patient, 'middleName', ''),
+              middleName: get(patient, 'lastName', ''),
+            });
+            this.handleShowForm();
+          }
+        }
+      }
+    }
+  }
+
+  componentWillMount() {
+    this.handleShowAppointments(true);
+  }
+
+  handleSearchAppointments(search) {
+    const { isShowDatePicker } = this.state;
+    this.handleShowAppointments(!isShowDatePicker, search);
+  }
+
+  handleOnchange = e => {
+    const { name, value } = e.target;
+    if (name === 'search') this.handleSearchAppointments(value);
+    this.setState({ [name]: value });
+  };
+
+  handleOnSave = e => {
+    e.preventDefault();
+    const { createAppointment, updateAppointment } = this.props;
+    const { id, startTime } = this.state;
+    if (startTime <= new Date()) {
+      this.setState({ errors: 'Invalid start time' });
+    } else {
+      const data = getAppointment(this.state, id == undefined);
+      id ? updateAppointment(data) : createAppointment(data);
+    }
+  };
+
+  handleDeleteAppointments = id => {
+    const { deleteAppointment } = this.props;
+    const isConfirm = window.confirm('Are you sure you want to delete?');
+    if (isConfirm) deleteAppointment(id);
+  };
+
+  handleShowAppointmentById = id => {
+    const { showAppointmentById } = this.props;
+    showAppointmentById(id);
+  };
+
+  handleResetState() {
+    this.setState({
+      isShowDatePicker: false,
+      isShowForm: false,
+      startDate,
+      endDate,
+      date: dateInit,
+      startTime: startTime(),
+      endTime: endTime(),
+      firstName: '',
+      lastName: '',
+      middleName: '',
+      comments: '',
+      errors: [],
+    });
+  }
 
   render() {
     const {
@@ -142,15 +286,20 @@ class App extends Component {
       lastName,
       middleName,
       comments,
+      errors,
+      appointments,
+      columns,
     } = this.state;
 
     return (
       <MDBContainer className='mt-5'>
         <h1>Doctor's Appointment</h1>
         {isShowForm && (
-          <form>
+          <form onSubmit={this.handleOnSave}>
+            {errors && <Errors errors={errors} />}
             <Input
               id='firstName'
+              name='firstName'
               label='First name:'
               value={firstName}
               required
@@ -158,6 +307,7 @@ class App extends Component {
             />
             <Input
               id='middleName'
+              name='middleName'
               label='Middle name:'
               value={middleName}
               required
@@ -165,6 +315,7 @@ class App extends Component {
             />
             <Input
               id='lastName'
+              name='lastName'
               label='Last name:'
               value={lastName}
               required
@@ -172,7 +323,8 @@ class App extends Component {
             />
             <TextArea
               id='comments'
-              label='Comments:'
+              name='comments'
+              label='Message:'
               value={comments}
               required
               onChange={this.handleOnchange.bind(this)}
@@ -181,14 +333,14 @@ class App extends Component {
               id='startTime'
               selected={startTime}
               lable='Start time:'
-              onChange={this.handleOnChangeStartTime.bind(this)}
+              onChange={e => this.handleOnChangeTime('startTime', e)}
               timeInterval={30}
             />
             <TimePicker
               id='endTime'
               selected={endTime}
               lable='End time:'
-              onChange={this.handleOnChangeEndTime.bind(this)}
+              onChange={e => this.handleOnChangeTime('endTime', e)}
               timeInterval={30}
             />
             <DatePicker
@@ -235,7 +387,7 @@ class App extends Component {
                 <MDBBtn
                   onClick={this.handleShowForm}
                   size='sm'
-                  title='Add appoinment'
+                  title='Add appointment'
                   color='success'
                   className='p-2 shadow-none btn-action'
                 >
@@ -245,8 +397,8 @@ class App extends Component {
             </div>
             {isShowDatePicker && (
               <DateRangePicker
-                onEvent={this.handleEvent}
-                onCallback={this.handleCallback}
+                onEvent={this.handleEvent.bind(this)}
+                onCallback={this.handleCallback.bind(this)}
                 initialSettings={{
                   startDate: startDate,
                   endDate: endDate,
@@ -259,7 +411,12 @@ class App extends Component {
               </DateRangePicker>
             )}
             <SearchInput onChange={this.handleOnchange.bind(this)} />
-            <DataTable responsive columns={columns} data={data} pagination />
+            <DataTable
+              responsive
+              columns={columns}
+              data={appointments}
+              pagination
+            />
           </Fragment>
         )}
       </MDBContainer>
@@ -269,9 +426,19 @@ class App extends Component {
 
 const mapStateToProps = state => ({
   state: state,
+  appointments: state.appointment.appointments,
+  appointment: state.appointment.appointment,
+  isLoading: state.appointment.isLoading,
+  hasError: state.appointment.hasError,
+  errors: state.appointment.errors,
 });
 const mapDispatchToProps = dispatch => ({
   createAppointment: data => dispatch(createAppointment(data)),
+  showAllAppointments: data => dispatch(showAllAppointments(data)),
+  deleteAppointment: data => dispatch(deleteAppointment(data)),
+  showAppointmentById: data => dispatch(showAppointmentById(data)),
+  updateAppointment: data => dispatch(updateAppointment(data)),
+  resetAppointment: () => dispatch(resetAppointment()),
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(App);

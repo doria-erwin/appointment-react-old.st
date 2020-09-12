@@ -8,7 +8,7 @@ const endDate =
     ? moment().add(2, 'days')
     : moment().add(1, 'days');
 
-const dateInit = moment().add(1, 'days').toDate();
+const dateInit = new Date();
 
 const startTime = () => {
   const time = new Date();
@@ -24,4 +24,62 @@ const endTime = () => {
   return time;
 };
 
-export { startDate, endDate, dateInit, startTime, endTime };
+const formatTime = (date, time) =>
+  moment(
+    `${moment(date).format('YYYY-MM-DD')} ${moment(time).format('HH:mm:00')}`
+  ).toDate();
+
+const getAppointment = (data, isNoId = true) => {
+  const {
+    id,
+    firstName,
+    lastName,
+    middleName,
+    comments,
+    startTime,
+    endTime,
+  } = data;
+
+  const appointment = {
+    id,
+    startTime: moment(startTime).format('YYYY-MM-DD HH:mm:00'),
+    endTime: moment(endTime).format('YYYY-MM-DD HH:mm:00'),
+    patient: {
+      firstName,
+      lastName,
+      middleName,
+    },
+    comment: {
+      message: comments,
+    },
+  };
+
+  if (isNoId) delete appointment.id;
+
+  return appointment;
+};
+
+const params = (data, isAll, search) => {
+  let { startDate, endDate } = data;
+  search =
+    search.trim(search).length > 0
+      ? `${!isAll ? '&' : '?'}search=${search}`
+      : '';
+  const param = !isAll
+    ? `?startDate=${startDate.format('YYYY-MM-DD')}&endDate=${endDate.format(
+        'YYYY-MM-DD'
+      )}`
+    : '';
+  return `${param}${search}`;
+};
+
+export {
+  startDate,
+  endDate,
+  dateInit,
+  startTime,
+  endTime,
+  formatTime,
+  getAppointment,
+  params,
+};
