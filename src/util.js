@@ -1,4 +1,7 @@
 /** @format */
+import React from 'react';
+import { MDBContainer, MDBIcon } from 'mdbreact';
+import { get } from 'lodash';
 import moment from 'moment';
 
 const startDate = moment().weekday() === 0 ? moment().add(1, 'days') : moment();
@@ -73,6 +76,88 @@ const params = (data, isAll, search) => {
   return `${param}${search}`;
 };
 
+const colums = parent => {
+  return [
+    {
+      name: 'id',
+      selector: 'id',
+      sortable: true,
+      center: true,
+    },
+    {
+      name: 'Date',
+      selector: 'startTime',
+      sortable: true,
+      center: true,
+      cell: row => <p>{moment(row.startTime).format('YYYY-MM-DD')}</p>,
+    },
+    {
+      name: 'From',
+      selector: 'startTime',
+      sortable: true,
+      center: true,
+      cell: row => <p>{moment(row.startTime).format('hh:mm:ss A')}</p>,
+    },
+    {
+      name: 'To',
+      selector: 'endTime',
+      sortable: true,
+      cell: row => <p>{moment(row.endTime).format('hh:mm:ss A')}</p>,
+    },
+    {
+      name: 'Patient',
+      selector: 'patient',
+      sortable: true,
+      center: true,
+      cell: row => (
+        <p className='text-capitalize'>{`${get(
+          row,
+          'patient.lastName',
+          ''
+        )} ${get(row, 'patient.firstName', '')}, ${get(
+          row,
+          'patient.middleName',
+          ''
+        )}`}</p>
+      ),
+    },
+    {
+      name: 'Comments',
+      selector: 'comment',
+      sortable: true,
+      center: true,
+      cell: row => (
+        <p className='text-capitalize'>{get(row, 'comment.message', '')}</p>
+      ),
+    },
+    {
+      name: 'Actions',
+      selector: 'Actions',
+      sortable: false,
+      center: true,
+      cell: row => (
+        <MDBContainer
+          id='container-action'
+          className='d-flex justify-content-center p-2'
+        >
+          <span
+            className='text-warning p-1 cursor-pointer'
+            onClick={() => parent.handleShowAppointmentById(row.id)}
+          >
+            <MDBIcon icon='pencil-alt' />
+          </span>
+          <span
+            className='text-danger p-1 cursor-pointer'
+            onClick={() => parent.handleDeleteAppointments(row.id)}
+          >
+            <MDBIcon icon='trash' />
+          </span>
+        </MDBContainer>
+      ),
+    },
+  ];
+};
+
 export {
   startDate,
   endDate,
@@ -82,4 +167,5 @@ export {
   formatTime,
   getAppointment,
   params,
+  colums,
 };

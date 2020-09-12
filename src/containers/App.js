@@ -10,6 +10,8 @@ import moment from 'moment';
 import Input from '../components/Input';
 import TextArea from '../components/TextArea';
 import SearchInput from '../components/SearchInput';
+import Errors from '../components/Errors';
+import { isEqual, get } from 'lodash';
 import {
   startTime,
   endTime,
@@ -19,8 +21,8 @@ import {
   formatTime,
   getAppointment,
   params,
+  colums,
 } from '../util';
-import { connect } from 'react-redux';
 import {
   createAppointment,
   showAllAppointments,
@@ -29,109 +31,33 @@ import {
   updateAppointment,
   resetAppointment,
 } from '../store/actions';
-import { isEqual, get } from 'lodash';
-import Errors from '../components/Errors';
-
+import { connect } from 'react-redux';
+const initState = {
+  search: '',
+  isShowDatePicker: false,
+  isShowForm: false,
+  startDate,
+  endDate,
+  date: dateInit,
+  id: undefined,
+  startTime: startTime(),
+  endTime: endTime(),
+  firstName: '',
+  lastName: '',
+  middleName: '',
+  comments: '',
+  errors: [],
+};
 class App extends Component {
   state = {
-    search: '',
-    isShowDatePicker: false,
-    isShowForm: false,
-    startDate,
-    endDate,
-    date: dateInit,
-    id: undefined,
-    startTime: startTime(),
-    endTime: endTime(),
-    firstName: '',
-    lastName: '',
-    middleName: '',
-    comments: '',
-    errors: [],
+    ...initState,
     appointments: [],
-    columns: [
-      {
-        name: 'id',
-        selector: 'id',
-        sortable: true,
-        center: true,
-      },
-      {
-        name: 'From',
-        selector: 'startTime',
-        sortable: true,
-        center: true,
-      },
-      {
-        name: 'To',
-        selector: 'endTime',
-        sortable: true,
-        center: true,
-      },
-      {
-        name: 'Patient',
-        selector: 'patient',
-        sortable: true,
-        center: true,
-        cell: row => (
-          <p className='text-capitalize'>{`${get(
-            row,
-            'patient.lastName',
-            ''
-          )} ${get(row, 'patient.firstName', '')}, ${get(
-            row,
-            'patient.middleName',
-            ''
-          )}`}</p>
-        ),
-      },
-      {
-        name: 'Comments',
-        selector: 'comment',
-        sortable: true,
-        center: true,
-        cell: row => (
-          <p className='text-capitalize'>{get(row, 'comment.message', '')}</p>
-        ),
-      },
-      {
-        name: 'Actions',
-        selector: 'Actions',
-        sortable: false,
-        center: true,
-        cell: row => (
-          <MDBContainer
-            id='container-action'
-            className='d-flex justify-content-center p-2'
-          >
-            <span
-              className='text-warning p-1 cursor-pointer'
-              onClick={() => this.handleShowAppointmentById(row.id)}
-            >
-              <MDBIcon icon='pencil-alt' />
-            </span>
-            <span
-              className='text-danger p-1 cursor-pointer'
-              onClick={() => this.handleDeleteAppointments(row.id)}
-            >
-              <MDBIcon icon='trash' />
-            </span>
-          </MDBContainer>
-        ),
-      },
-    ],
+    columns: colums(this),
   };
 
-  handleEvent(event, picker) {}
-
-  handleCallback(start, end, label) {
+  handleDateRange(start, end, label) {
     this.setState({ startDate: start, endDate: end });
     this.handleShowAppointments();
-  }
-
-  handleShowAppointments(isAll, search = '') {
-    const { showAllAppointments } = this.props;
-    showAllAppointments(params(this.state, isAll, search));
   }
 
   handleShowDatePicker = () => {
@@ -145,18 +71,12 @@ class App extends Component {
   handleShowForm = () => {
     let { isShowForm } = this.state;
     const { resetAppointment } = this.props;
-    if (isShowForm) resetAppointment();
+    if (isShowForm) {
+      this.handleReset();
+      resetAppointment();
+    }
 
     this.setState({ isShowForm: !isShowForm });
-  };
-
-  handleDateRange = dates => {
-    if (dates) {
-      const [start, end] = dates;
-      this.setState({ startDate: start, endDate: end });
-    } else {
-      this.setState({ startDate: null, endDate: null });
-    }
   };
 
   handleOnChangeTime = (key, time) => {
@@ -173,14 +93,55 @@ class App extends Component {
     });
   };
 
+  handleOnchange = e => {
+    const { name, value } = e.target;
+    if (name === 'search') this.handleSearchAppointments(value);
+    this.setState({ [name]: value });
+  };
+
+  handleShowAppointments(isAll, search = '') {
+    const { showAllAppointments } = this.props;
+    showAllAppointments(params(this.state, isAll, search));
+  }
+
+  handleShowAppointmentById = id => {
+    const { showAppointmentById } = this.props;
+    showAppointmentById(id);
+  };
+
+  handleSearchAppointments(search) {
+    const { isShowDatePicker } = this.state;
+    this.handleShowAppointments(!isShowDatePicker, search);
+  }
+
+  handleOnSave = e => {
+    e.preventDefault();
+    const { createAppointment, updateAppointment } = this.props;
+    const { id, startTime } = this.state;
+    if (startTime <= new Date()) {
+      this.setState({ errors: 'Invalid start time' });
+    } else {
+      const data = getAppointment(this.state, id === undefined);
+      id ? updateAppointment(data) : createAppointment(data);
+    }
+  };
+
+  handleDeleteAppointments = id => {
+    const { deleteAppointment } = this.props;
+    const isConfirm = window.confirm('Are you sure you want to delete?');
+    if (isConfirm) deleteAppointment(id);
+  };
+
+  handleReset() {
+    const { resetAppointment } = this.props;
+    resetAppointment();
+    this.setState({
+      ...initState,
+    });
+  }
+
   componentDidUpdate(prevProps) {
-    const {
-      hasError,
-      errors,
-      appointment,
-      appointments,
-      resetAppointment,
-    } = this.props;
+    const { hasError, errors, appointment, appointments } = this.props;
     if (!isEqual(prevProps.appointments, appointments)) {
       this.setState({ appointments: get(appointments, 'appointments', []) });
     }
@@ -193,9 +154,7 @@ class App extends Component {
       if (!hasError) {
         if (get(appointment, 'message', undefined)) {
           alert(appointment.message);
-          resetAppointment();
-          this.handleResetState();
-          this.setState({ isShowDatePicker: false, id: undefined });
+          this.handleReset();
           this.handleShowAppointments(true);
         } else {
           const data = get(appointment, 'appointment', {});
@@ -218,59 +177,8 @@ class App extends Component {
     }
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.handleShowAppointments(true);
-  }
-
-  handleSearchAppointments(search) {
-    const { isShowDatePicker } = this.state;
-    this.handleShowAppointments(!isShowDatePicker, search);
-  }
-
-  handleOnchange = e => {
-    const { name, value } = e.target;
-    if (name === 'search') this.handleSearchAppointments(value);
-    this.setState({ [name]: value });
-  };
-
-  handleOnSave = e => {
-    e.preventDefault();
-    const { createAppointment, updateAppointment } = this.props;
-    const { id, startTime } = this.state;
-    if (startTime <= new Date()) {
-      this.setState({ errors: 'Invalid start time' });
-    } else {
-      const data = getAppointment(this.state, id == undefined);
-      id ? updateAppointment(data) : createAppointment(data);
-    }
-  };
-
-  handleDeleteAppointments = id => {
-    const { deleteAppointment } = this.props;
-    const isConfirm = window.confirm('Are you sure you want to delete?');
-    if (isConfirm) deleteAppointment(id);
-  };
-
-  handleShowAppointmentById = id => {
-    const { showAppointmentById } = this.props;
-    showAppointmentById(id);
-  };
-
-  handleResetState() {
-    this.setState({
-      isShowDatePicker: false,
-      isShowForm: false,
-      startDate,
-      endDate,
-      date: dateInit,
-      startTime: startTime(),
-      endTime: endTime(),
-      firstName: '',
-      lastName: '',
-      middleName: '',
-      comments: '',
-      errors: [],
-    });
   }
 
   render() {
@@ -397,8 +305,7 @@ class App extends Component {
             </div>
             {isShowDatePicker && (
               <DateRangePicker
-                onEvent={this.handleEvent.bind(this)}
-                onCallback={this.handleCallback.bind(this)}
+                onCallback={this.handleDateRange.bind(this)}
                 initialSettings={{
                   startDate: startDate,
                   endDate: endDate,
@@ -425,7 +332,6 @@ class App extends Component {
 }
 
 const mapStateToProps = state => ({
-  state: state,
   appointments: state.appointment.appointments,
   appointment: state.appointment.appointment,
   isLoading: state.appointment.isLoading,

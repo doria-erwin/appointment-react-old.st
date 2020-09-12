@@ -30,6 +30,8 @@ export const createAppointment = data => dispatch => {
       dispatch({ type: CREATE_APPOINTMENT_SUCCESS, payload: res.data.data });
     })
     .catch(err => {
+      if (err.message == 'Network Error')
+        alert('Please check your API if running...');
       dispatch({
         type: CREATE_APPOINTMENT_FAILURE,
         payload: get(err, 'response.data.data.errors', {}),
@@ -45,6 +47,8 @@ export const showAllAppointments = (data = '') => dispatch => {
       dispatch({ type: GET_ALL_APPOINTMENT_SUCCESS, payload: res.data.data });
     })
     .catch(err => {
+      if (err.message == 'Network Error')
+        alert('Please check your API if running...');
       dispatch({
         type: GET_ALL_APPOINTMENT_FAILURE,
         payload: get(err, 'response.data.data.errors', {}),
@@ -60,6 +64,8 @@ export const deleteAppointment = data => dispatch => {
       dispatch({ type: DELETE_APPOINTMENT_SUCCESS, payload: res.data.data });
     })
     .catch(err => {
+      if (err.message == 'Network Error')
+        alert('Please check your API if running...');
       dispatch({
         type: DELETE_APPOINTMENT_FAILURE,
         payload: get(err, 'response.data.data.errors', {}),
@@ -75,6 +81,8 @@ export const showAppointmentById = data => dispatch => {
       dispatch({ type: GET_APPOINTMENT_SUCCESS, payload: res.data.data });
     })
     .catch(err => {
+      if (err.message == 'Network Error')
+        alert('Please check your API if running...');
       dispatch({
         type: GET_APPOINTMENT_FAILURE,
         payload: get(err, 'response.data.data.errors', {}),
@@ -92,6 +100,8 @@ export const updateAppointment = data => dispatch => {
       dispatch({ type: UPDATE_APPOINTMENT_SUCCESS, payload: res.data.data });
     })
     .catch(err => {
+      if (err.message == 'Network Error')
+        alert('Please check your API if running...');
       dispatch({
         type: UPDATE_APPOINTMENT_FAILURE,
         payload: get(err, 'response.data.data.errors', {}),
